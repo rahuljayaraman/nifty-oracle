@@ -1,0 +1,21 @@
+{
+  "name": "hbot",
+  "version": "0.0.1",
+  "description": "An IRC bot which tells you your horoscope.",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "irc",
+    "bot",
+    "horoscope"
+  ],
+  "author": "Rahul Jayaraman",
+  "license": "BSD-2-Clause",
+  "dependencies": {
+    "irc": "~0.3.6",
+    "request": "~2.30.0",
+    "q": "~0.9.7"
+  }
+}
