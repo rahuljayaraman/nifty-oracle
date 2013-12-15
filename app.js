@@ -60,8 +60,6 @@ var chooseRandomHoroscopeFrom = function(readings) {
 }
 
 var rant = function(message) {
-	console.log(message.length);
-	console.log(message);
 	client.say(config.channel, message);
 }
 
