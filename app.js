@@ -2,19 +2,23 @@ var irc = require('irc');
 var request = require('request');
 var Q = require('q');
 var config = require('./bot_config');
+var logger = require('winston');
 
 SIGNS = ['aries', 'taurus', 'gemini', 'cancer', 'leo', 'virgo', 'libra', 'scorpio', 'sagittarius', 'capricorn', 'aquarius', 'pisces']; 
 BASE_URL = "http://www.horoscopecloud.com/api/v1.0/horoscope/";
+var port = process.env.PORT || config.port;
 
 var client = new irc.Client(config.server, config.name, {
 	channels: [config.channel],
 	messageSplit: 1000,
 	floodProtection: false,
 	autoRejoin: true,
-	autoConnect: true
+	autoConnect: true,
+	port: port
 });
 
 client.addListener('message', function (from, to, message) {
+	logger.info("From:", from);
 	var keyword = findKeyWord(message);
 	if(keyword) {
 		fetchHoroscopeFor(keyword).then(rant).fail(handleError);
@@ -22,7 +26,7 @@ client.addListener('message', function (from, to, message) {
 });
 
 client.addListener('error', function(message) {
-	console.log('error: ', message);
+	logger.error(message);
 });
 
 var findKeyWord = function(message) {
@@ -60,14 +64,17 @@ var chooseRandomHoroscopeFrom = function(readings) {
 }
 
 var rant = function(message) {
+	logger.info(message);
 	client.say(config.channel, message);
 }
 
 var handleError = function(error) {
-	console.log(error);
+	logger.error(error);
 	rant("Hmm.. Your future is clouded. Allow me to medidate. I'll get back to you.");
 }
 
 var sanitize = function(message) {
 	return message.replace(/(\r\n|\n|\r)/gm,"");
 }
+
+require('http').createServer().listen(port);

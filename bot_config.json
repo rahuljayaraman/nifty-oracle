@@ -1,6 +1,7 @@
 {
 	"name": "oracle",
 	"server": "irc.foonetic.net",
-	"channel": "#testingbot"
+	"channel": "#testbot",
+	"port": 6667
 }
 
