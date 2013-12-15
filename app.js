@@ -16,9 +16,9 @@ var client = new irc.Client(config.server, config.name, {
 });
 
 client.addListener('message', function (from, to, message) {
-	logger.info("From:", from);
 	var keyword = findKeyWord(message);
 	if(keyword) {
+		logger.info("From:", from);
 		fetchHoroscopeFor(keyword).then(rant).fail(handleError);
 	}
 });
