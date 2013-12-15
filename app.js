@@ -6,15 +6,13 @@ var logger = require('winston');
 
 SIGNS = ['aries', 'taurus', 'gemini', 'cancer', 'leo', 'virgo', 'libra', 'scorpio', 'sagittarius', 'capricorn', 'aquarius', 'pisces']; 
 BASE_URL = "http://www.horoscopecloud.com/api/v1.0/horoscope/";
-var port = process.env.PORT || config.port;
 
 var client = new irc.Client(config.server, config.name, {
 	channels: [config.channel],
 	messageSplit: 1000,
 	floodProtection: false,
 	autoRejoin: true,
-	autoConnect: true,
-	port: port
+	autoConnect: true
 });
 
 client.addListener('message', function (from, to, message) {
@@ -76,5 +74,3 @@ var handleError = function(error) {
 var sanitize = function(message) {
 	return message.replace(/(\r\n|\n|\r)/gm,"");
 }
-
-require('http').createServer().listen(port);
