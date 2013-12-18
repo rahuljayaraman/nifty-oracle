@@ -1,6 +1,6 @@
 {
-	"name": "oracle",
+	"name": "test",
 	"server": "irc.foonetic.net",
-	"channel": "#activesphere"
+	"channel": "#testingbot"
 }
 
