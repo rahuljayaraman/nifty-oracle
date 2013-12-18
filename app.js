@@ -65,7 +65,7 @@ var handleLinks = function(action) {
 	linkLogger.getLinks(action).then(function(response) { 
 		response.forEach(function(entry) {
 			var json = JSON.parse(entry);
-			var message = json.link;
+			var message = json.from + "(" + moment(json.datetime).fromNow() + "): " + json.link;
 			rant(message) 
 		});
 	}).fail();
