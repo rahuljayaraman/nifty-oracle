@@ -3,9 +3,19 @@ var request = require('request');
 var Q = require('q');
 var config = require('./bot_config');
 var logger = require('winston');
+var moment = require('moment');
+
+if (process.env.REDISTOGO_URL) {
+	var rtg   = require("url").parse(process.env.REDISTOGO_URL);
+	var redis = require("redis").createClient(rtg.port, rtg.hostname);
+	redis.auth(rtg.auth.split(":")[1]);
+} else {
+	var redis = require("redis").createClient();
+}
 
 SIGNS = ['aries', 'taurus', 'gemini', 'cancer', 'leo', 'virgo', 'libra', 'scorpio', 'sagittarius', 'capricorn', 'aquarius', 'pisces']; 
 BASE_URL = "http://www.horoscopecloud.com/api/v1.0/horoscope/";
+COMMANDS = ['!links'];
 
 var client = new irc.Client(config.server, config.name, {
 	channels: [config.channel],
@@ -16,6 +26,15 @@ var client = new irc.Client(config.server, config.name, {
 });
 
 client.addListener('message', function (from, to, message) {
+	//Log Links
+	var link = hasLink(message);
+	if (link) {
+		saveLink(from, to, message, link, moment().format());
+	}
+
+	parseLinksCommand(message);
+
+	//Look for Horoscope references
 	var keyword = findKeyWord(message);
 	if(keyword) {
 		logger.info("From:", from);
@@ -27,8 +46,56 @@ client.addListener('error', function(message) {
 	logger.error(message);
 });
 
+
+var parseLinksCommand = function(message) {
+	var regExp = new RegExp("^!links\\s{0,2}\\d{0,2}");
+	var command = message.match(regExp);
+	if (command) {
+		sendLinks(command[0]);
+	}
+	return;
+}
+
+var sendLinks = function(command) {
+	var argument = command.split(" ", 2);
+	var nos = argument[1] || "10";
+	if (nos != "10") {
+		//Array offset. Subtract 1 to range
+		nos = (parseInt(nos) - 1).toString();
+	}
+	console.log(nos);
+	var args = ['bot:logs:links', '0', nos];
+	redis.lrange(args, function(err, res) {
+		res.forEach(function(entry) {
+			var json = JSON.parse(entry);
+			var message = json.link;
+			rant(message);
+		});
+	});
+}
+
+var saveLink = function(from, to, message, link, datetime) {
+	var entry = {
+		from: from,
+		to: to,
+		message: message,
+		link: link,
+		datetime: datetime
+	};
+	redis.lpush("bot:logs:links", JSON.stringify(entry));
+}
+
+var hasLink = function(message) {
+	var regExp = /http[s]?:\/\/[^\s]*/;
+	var match = message.match(regExp);
+	if (match == null) {
+		return null;
+	}
+	return match[0];
+}
+
 var findKeyWord = function(message) {
-	var reg = new RegExp( SIGNS.join('|'), "i");
+	var reg = new RegExp(SIGNS.join('|'), "i");
 	var result = reg.exec(message);
 	if(result) {
 		return result[0];
