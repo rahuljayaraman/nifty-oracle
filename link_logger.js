@@ -1,4 +1,5 @@
 var Q = require('q');
+var logger = require('winston');
 
 module.exports = function(redis) {
 
@@ -32,6 +33,10 @@ module.exports = function(redis) {
 		if (nos != "10") {
 			//Array offset. Subtract 1 to range
 			nos = (parseInt(nos) - 1).toString();
+		}
+		if (nos > 25) {
+			nos = 25;
+			logger.info("Capping links @ 50");
 		}
 		var args = ['bot:logs:links', '0', nos];
 		redis.lrange(args, function(err, res) {
