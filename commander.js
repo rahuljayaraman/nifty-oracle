@@ -4,6 +4,7 @@ module.exports.parse = function(message, from) {
 	var horoscope = /^ho\s{1}\w{0,15}/;
 	var help = /help/i;
 	var all = /all/i;
+	var asana = /asana/i;
 
 	if(publinks.test(message)) {
 		return { module: "publinks", action: message, from: from };
@@ -15,6 +16,8 @@ module.exports.parse = function(message, from) {
 		return { module: "help", action: message, from: from };
 	} else if (all.test(message)) {
 		return { module: "all", action: message, from: from };
+	} else if (asana.test(message)) {
+		return { module: "asana", action: message, from: from };
 	} else {
 		return { module: "notfound" }
 	}

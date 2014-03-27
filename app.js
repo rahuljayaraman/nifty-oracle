@@ -4,6 +4,7 @@ var config = require('./bot_config');
 var logger = require('winston');
 var moment = require('moment');
 var _ = require('underscore');
+var asana = require('./asana');
 
 //RedisToGo for Heroku
 if (process.env.REDISTOGO_URL) {
@@ -78,10 +79,27 @@ var router = function(command) {
 		case "all":
 			handleAll(command.from);
 			break;
+		case "asana":
+			handleAsana(command);
+			break;
 		default:
 			handleDefault();
 			break;	
 	}
+}
+
+var handleAsana = function(command) {
+	var date;
+	if(moment(command.action.slice(6)).isValid()) {
+		date = command.action.slice(6);
+	}
+	rant("Hang on... This might take a few seconds..");
+	asana.processDailySummary(date).then(function (res) {
+		rant(res.html_url);
+	}).fail(function(err) {
+		rant("Sorry something broke.");
+		console.log(err);
+	});
 }
 
 var handleLinks = function(command, public) {
@@ -128,8 +146,7 @@ var handleDefault = function() {
 }
 
 var handleHelp = function() {
-	logger.info(client._whoisData);
-	rant("!links, !links 1..25, !publinks 1..25, !all, !ho *sunsign*");
+	rant("!links, !links 1..25, !publinks 1..25, !all, !ho *sunsign*, !asana");
 }
 
 var handleError = function(error) {
