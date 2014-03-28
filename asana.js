@@ -68,7 +68,7 @@ function postGist (content, date) {
 	var url = 'https://api.github.com/gists';
 	var data = {
 		"description": "Summary - " + moment(date).format('ll'),
-		"public": true,
+		"public": false,
 		"files": {
 			"summary.md": {
 				"content": content
