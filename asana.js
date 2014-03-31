@@ -20,19 +20,43 @@ function init (reportDate) {
 	var Assignees = {
 		'5156862284278': {
 			'name': 'Anantha',
-			'tasks': []
+			'tasks': {
+				'qa': [],
+				'review': [],
+				'important': [],
+				'lower': [],
+				'others': []
+			}
 		},
 		'8549114501427': {
 			'name': 'Dhruva',
-			'tasks': []
+			'tasks': {
+				'qa': [],
+				'review': [],
+				'important': [],
+				'lower': [],
+				'others': []
+			}
 		},
 		'8711029151621': {
 			'name': 'Rahul',
-			'tasks': []
+			'tasks': {
+				'qa': [],
+				'review': [],
+				'important': [],
+				'lower': [],
+				'others': []
+			}
 		},
 		'5156862284269': {
 			'name': 'Sreekanth',
-			'tasks': []
+			'tasks': {
+				'qa': [],
+				'review': [],
+				'important': [],
+				'lower': [],
+				'others': []
+			}
 		}
 	};
 
@@ -51,7 +75,18 @@ function init (reportDate) {
 				var storiesUrl = buildStoriesUrlFor(task.id);
 				return fetch(storiesUrl).then(function(stories) {
 					task.stories = stories.data.slice(-2);
-					Assignees[assigneeId].tasks.push(task)
+
+					//Attempting to find which section the tasks belong to
+					var sectionStory = _.find(stories.data.reverse(), function (story) {
+						return /moved from/i.test(story.text);
+					});
+
+					var section = 'others';
+					if (sectionStory) {
+						section = getSectionFromStory(sectionStory);
+					}
+
+					Assignees[assigneeId].tasks[section].push(task)
 				});
 			});
 			return Q.allSettled(promisesForStories);
@@ -62,6 +97,21 @@ function init (reportDate) {
 		var content = createMarkdownContent(Assignees, date);
 		return postGist(content, date);
 	});
+}
+
+function getSectionFromStory (story) {
+	var text = story.text;
+	if (/to review/i.test(text)) {
+		return 'review';
+	} else if (/important/i.test(text)) {
+		return 'important';
+	} else if (/qa/i.test(text)) {
+		return 'qa';
+	} else if (/lower/i.text(text)) {
+		return 'lower'
+	} else {
+		return 'others'
+	}
 }
 
 function postGist (content, date) {
@@ -104,14 +154,38 @@ function fetch (url) {
 
 function createMarkdownContent (assignees, date) {
 	var content = '## Activities for ' + moment(date).format('LL') + ' \n\n';
-	_.each(Object.keys(assignees), function(id) {
-		content += '\n' + '### ' + assignees[id].name + ' \n';
-		_.each(assignees[id].tasks, function(task) {
+
+	function createSubStories () {
+		return function (task) {
 			content += '\n   - ' + task.name + ' (last modified: ' + moment(task.modified_at).format('lll') +') \n';
 			_.each(task.stories, function(story) {
-				content += '      - ' + story.created_by.name + '(' + moment(story.created_at).format('lll') + '): ' + story.text + ' \n';
+				content += '      - ' + story.created_by.name + ' (' + moment(story.created_at).format('lll') + '): ' + story.text + ' \n';
 			});
-		});
+		}
+	}
+
+	_.each(Object.keys(assignees), function(id) {
+		content += '\n' + '### ' + assignees[id].name + ' \n';
+		if (!_.isEmpty(assignees[id].tasks['review'])) {
+			content += '\n#### In Review\n';
+			_.each(assignees[id].tasks['review'], createSubStories());
+		}
+		if (!_.isEmpty(assignees[id].tasks['qa'])) {
+			content += '\n#### In QA\n';
+			_.each(assignees[id].tasks['qa'], createSubStories());
+		}
+		if (!_.isEmpty(assignees[id].tasks['important'])) {
+			content += '\n#### Important\n';
+			_.each(assignees[id].tasks['important'], createSubStories());
+		}
+		if (!_.isEmpty(assignees[id].tasks['lower'])) {
+			content += '\n#### Low Priority\n';
+			_.each(assignees[id].tasks['lower'], createSubStories());
+		}
+		if (!_.isEmpty(assignees[id].tasks['others'])) {
+			content += '\n#### Others\n';
+			_.each(assignees[id].tasks['others'], createSubStories());
+		}
 	});
 	return content;
 }
@@ -132,6 +206,5 @@ function buildTasksUrlFor (assignee, date) {
 
 	return baseUrl + pulseWorkSpace + assigneeId + modifiedSince;
 }
-
 
 module.exports.processDailySummary = init;
