@@ -24,6 +24,7 @@ function init (reportDate) {
 				'qa': [],
 				'review': [],
 				'important': [],
+				'attention': [],
 				'lower': [],
 				'completed': [],
 				'others': []
@@ -35,6 +36,7 @@ function init (reportDate) {
 				'qa': [],
 				'review': [],
 				'important': [],
+				'attention': [],
 				'lower': [],
 				'completed': [],
 				'others': []
@@ -46,6 +48,7 @@ function init (reportDate) {
 				'qa': [],
 				'review': [],
 				'important': [],
+				'attention': [],
 				'lower': [],
 				'completed': [],
 				'others': []
@@ -57,6 +60,7 @@ function init (reportDate) {
 				'qa': [],
 				'review': [],
 				'important': [],
+				'attention': [],
 				'lower': [],
 				'completed': [],
 				'others': []
@@ -72,17 +76,17 @@ function init (reportDate) {
 
 	console.log('Generating report for', date);
 
-	var promisesForTasks = _.map(Object.keys(Assignees), function(assigneeId) {
+	var promisesForTasks = _.map(Object.keys(Assignees), function (assigneeId) {
 		var tasksUrl = buildTasksUrlFor(assigneeId, date);
 		return fetch(tasksUrl).then(function(tasks) {
-			var promisesForStories = _.map(tasks.data, function(task) {
+			var promisesForStories = _.map(tasks.data, function (task) {
 				var storiesUrl = buildStoriesUrlFor(task.id);
-				return fetch(storiesUrl).then(function(stories) {
-					task.stories = filterStories(stories.data, date);
+				return fetch(storiesUrl).then(function (stories) {
+					task.stories = filterStories(stories.data, date).reverse();
 
 					//Attempting to find which section the tasks belong to
 					var sectionStory = _.find(stories.data.reverse(), function (story) {
-						return /moved from/i.test(story.text);
+						return /Moved from/.test(story.text) || /Needs Attention/.test(story.text);
 					});
 
 					//Default Section
@@ -117,23 +121,37 @@ function filterStories (stories, date) {
 
 function getSectionFromStory (story) {
 	var text = story.text;
-	if (/to review/i.test(text)) {
+	if (/to to review/i.test(text)) {
 		return 'review';
-	} else if (/important/i.test(text)) {
+	} else if (/to needs attention/i.test(text)) {
+		return 'attention';
+	} else if (/to important/i.test(text)) {
 		return 'important';
-	} else if (/qa/i.test(text)) {
+	} else if (/to ready for qa/i.test(text)) {
 		return 'qa';
-	} else if (/lower/i.text(text)) {
+	} else if (/to lower/i.text(text)) {
 		return 'lower'
 	} else {
 		return 'others'
 	}
 }
 
+function createSummary (date) {
+	var description = "Activity Summary - " + moment(date).format('ll');
+
+	if (moment().startOf('day').format('ll') !== moment(date).format('ll')) {
+		description = "Activity Summary - " + moment(date).format('ll') + " to " + moment().startOf('day').format('ll'); 
+	}
+	return description;
+}
+
 function postGist (content, date) {
 	var url = 'https://api.github.com/gists';
+
+	var description = createSummary(date); 
+
 	var data = {
-		"description": "Summary - " + moment(date).format('ll'),
+		"description": description,
 		"public": false,
 		"files": {
 			"summary.md": {
@@ -168,43 +186,54 @@ function fetch (url) {
 	return deferred.promise;
 }
 
-function createMarkdownContent (assignees, date) {
-	var content = '## Activities for ' + moment(date).format('LL') + ' \n\n';
+function createAsanaLink (task, id) {
+	var baseUrl = 'http://app.asana.com/0/';
+	var link = baseUrl + id + '/' + task.id;
+	return '[' + task.name + '](' + link + ')';
+}
 
-	function createSubStories () {
+function createMarkdownContent (assignees, date) {
+	var content = '## ' + createSummary(date) + '\n\n';
+
+	function createSubStories (id) {
 		return function (task) {
-			content += '\n   - ' + task.name + ' (last modified: ' + moment(task.modified_at).format('lll') +') \n';
+			content += '\n   - ' + createAsanaLink(task, id) + ' (last modified: ' + moment(task.modified_at).format('lll') +') \n';
 			_.each(task.stories, function(story) {
 				content += '      - ' + story.created_by.name + ' (' + moment(story.created_at).format('lll') + '): ' + story.text + ' \n';
 			});
 		}
 	}
 
+
 	_.each(Object.keys(assignees), function(id) {
 		content += '\n' + '### ' + assignees[id].name + ' \n';
-		if (!_.isEmpty(assignees[id].tasks['important'])) {
-			content += '\n#### Working on (Important)\n';
-			_.each(assignees[id].tasks['important'], createSubStories());
-		}
-		if (!_.isEmpty(assignees[id].tasks['lower'])) {
-			content += '\n#### Working on (Low Priority)\n';
-			_.each(assignees[id].tasks['lower'], createSubStories());
+		if (!_.isEmpty(assignees[id].tasks['attention'])) {
+			content += '\n#### Needs Attention\n';
+			_.each(assignees[id].tasks['attention'], createSubStories(id));
 		}
 		if (!_.isEmpty(assignees[id].tasks['review'])) {
 			content += '\n#### Review\n';
-			_.each(assignees[id].tasks['review'], createSubStories());
+			_.each(assignees[id].tasks['review'], createSubStories(id));
+		}
+		if (!_.isEmpty(assignees[id].tasks['important'])) {
+			content += '\n#### Working on (Important)\n';
+			_.each(assignees[id].tasks['important'], createSubStories(id));
+		}
+		if (!_.isEmpty(assignees[id].tasks['lower'])) {
+			content += '\n#### Working on (Low Priority)\n';
+			_.each(assignees[id].tasks['lower'], createSubStories(id));
 		}
 		if (!_.isEmpty(assignees[id].tasks['qa'])) {
 			content += '\n#### QA\n';
-			_.each(assignees[id].tasks['qa'], createSubStories());
+			_.each(assignees[id].tasks['qa'], createSubStories(id));
 		}
 		if (!_.isEmpty(assignees[id].tasks['others'])) {
-			content += '\n#### Others\n';
-			_.each(assignees[id].tasks['others'], createSubStories());
+			content += '\n#### Other Stuff\n';
+			_.each(assignees[id].tasks['others'], createSubStories(id));
 		}
-		if (!_.isEmpty(assignees[id].tasks['review'])) {
+		if (!_.isEmpty(assignees[id].tasks['completed'])) {
 			content += '\n#### Completed\n';
-			_.each(assignees[id].tasks['completed'], createSubStories());
+			_.each(assignees[id].tasks['completed'], createSubStories(id));
 		}
 	});
 	return content;
