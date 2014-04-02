@@ -25,6 +25,7 @@ function init (reportDate) {
 				'review': [],
 				'important': [],
 				'lower': [],
+				'completed': [],
 				'others': []
 			}
 		},
@@ -35,6 +36,7 @@ function init (reportDate) {
 				'review': [],
 				'important': [],
 				'lower': [],
+				'completed': [],
 				'others': []
 			}
 		},
@@ -45,6 +47,7 @@ function init (reportDate) {
 				'review': [],
 				'important': [],
 				'lower': [],
+				'completed': [],
 				'others': []
 			}
 		},
@@ -55,6 +58,7 @@ function init (reportDate) {
 				'review': [],
 				'important': [],
 				'lower': [],
+				'completed': [],
 				'others': []
 			}
 		}
@@ -74,16 +78,22 @@ function init (reportDate) {
 			var promisesForStories = _.map(tasks.data, function(task) {
 				var storiesUrl = buildStoriesUrlFor(task.id);
 				return fetch(storiesUrl).then(function(stories) {
-					task.stories = stories.data.slice(-2);
+					task.stories = filterStories(stories.data, date);
 
 					//Attempting to find which section the tasks belong to
 					var sectionStory = _.find(stories.data.reverse(), function (story) {
 						return /moved from/i.test(story.text);
 					});
 
+					//Default Section
 					var section = 'others';
 					if (sectionStory) {
 						section = getSectionFromStory(sectionStory);
+					}
+
+					//Override section to completed if task has been completed
+					if (task.completed) {
+						section = 'completed';
 					}
 
 					Assignees[assigneeId].tasks[section].push(task)
@@ -96,6 +106,12 @@ function init (reportDate) {
 	return Q.allSettled(promisesForTasks).then(function () {
 		var content = createMarkdownContent(Assignees, date);
 		return postGist(content, date);
+	});
+}
+
+function filterStories (stories, date) {
+	return _.filter(stories, function(story) {
+		return moment(date) < moment(story.created_at);
 	});
 }
 
@@ -166,25 +182,29 @@ function createMarkdownContent (assignees, date) {
 
 	_.each(Object.keys(assignees), function(id) {
 		content += '\n' + '### ' + assignees[id].name + ' \n';
-		if (!_.isEmpty(assignees[id].tasks['review'])) {
-			content += '\n#### In Review\n';
-			_.each(assignees[id].tasks['review'], createSubStories());
-		}
-		if (!_.isEmpty(assignees[id].tasks['qa'])) {
-			content += '\n#### In QA\n';
-			_.each(assignees[id].tasks['qa'], createSubStories());
-		}
 		if (!_.isEmpty(assignees[id].tasks['important'])) {
-			content += '\n#### Important\n';
+			content += '\n#### Working on (Important)\n';
 			_.each(assignees[id].tasks['important'], createSubStories());
 		}
 		if (!_.isEmpty(assignees[id].tasks['lower'])) {
-			content += '\n#### Low Priority\n';
+			content += '\n#### Working on (Low Priority)\n';
 			_.each(assignees[id].tasks['lower'], createSubStories());
+		}
+		if (!_.isEmpty(assignees[id].tasks['review'])) {
+			content += '\n#### Review\n';
+			_.each(assignees[id].tasks['review'], createSubStories());
+		}
+		if (!_.isEmpty(assignees[id].tasks['qa'])) {
+			content += '\n#### QA\n';
+			_.each(assignees[id].tasks['qa'], createSubStories());
 		}
 		if (!_.isEmpty(assignees[id].tasks['others'])) {
 			content += '\n#### Others\n';
 			_.each(assignees[id].tasks['others'], createSubStories());
+		}
+		if (!_.isEmpty(assignees[id].tasks['review'])) {
+			content += '\n#### Completed\n';
+			_.each(assignees[id].tasks['completed'], createSubStories());
 		}
 	});
 	return content;
