@@ -100,7 +100,8 @@ function init (reportDate) {
 						section = 'completed';
 					}
 
-					Assignees[assigneeId].tasks[section].push(task)
+					Assignees[assigneeId].tasks[section].push(task);
+					return;
 				});
 			});
 			return Q.allSettled(promisesForStories);
@@ -129,10 +130,10 @@ function getSectionFromStory (story) {
 		return 'important';
 	} else if (/to ready for qa/i.test(text)) {
 		return 'qa';
-	} else if (/to lower/i.text(text)) {
-		return 'lower'
+	} else if (/to lower/i.test(text)) {
+		return 'lower';
 	} else {
-		return 'others'
+		return 'others';
 	}
 }
 
